@@ -1,0 +1,104 @@
+# -*- encoding:utf-8 -*-
+
+import requests
+from lxml import html
+from bs4 import BeautifulSoup
+import use_api as api
+import random
+import pymysql as py
+
+def get_page_1(url):
+    ip = api.get_proxy()
+    proxies = {
+        "http:":str("http://" + str(ip))
+    }
+    cookies_pool = [
+        'clientlanguage=zh_CN; _gscu_1277169039=734418782e5a5y13; _gscbrs_1277169039=1; JSESSIONID=EF357A16AC7A01A2403D2D1350AF8EF4; _gscs_1277169039=t73471259hjdm1u14|pv:3',
+        'clientlanguage=zh_CN; _gscu_1277169039=734418782e5a5y13; _gscbrs_1277169039=1; JSESSIONID=EF357A16AC7A01A2403D2D1350AF8EF4; _gscs_1277169039=t73471259hjdm1u14|pv:1'
+        'clientlanguage=zh_CN; _gscu_1277169039=734418782e5a5y13; _gscbrs_1277169039=1; JSESSIONID=EF357A16AC7A01A2403D2D1350AF8EF4; _gscs_1277169039=t73471259hjdm1u14|pv:4',
+        'JSESSIONID=5CA8366002EA83F2AF7CE402B500980E; clientlanguage=zh_CN; _gscu_1277169039=734719104w69nr75; _gscs_1277169039=73471910uevkfx75|pv:4; _gscbrs_1277169039=1'
+        'JSESSIONID=5CA8366002EA83F2AF7CE402B500980E; clientlanguage=zh_CN; _gscu_1277169039=734719104w69nr75; _gscs_1277169039=73471910uevkfx75|pv:7; _gscbrs_1277169039=1'
+    ]
+    headers = {
+        "Cookie":random.choice(cookies_pool)
+        , "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0"
+    }
+    print(proxies)
+    page = requests.get(url,proxies=proxies,headers=headers)
+    return page
+
+def get_page(url):
+    print(url)
+    ip = api.get_proxy()
+    proxies = {
+        "http": str("http://" + str(ip))
+    }
+    print(proxies)
+    cookies_pool = ['clientlanguage=zh_CN; _gscu_1277169039=734418782e5a5y13; _gscbrs_1277169039=1; JSESSIONID=EF357A16AC7A01A2403D2D1350AF8EF4; _gscs_1277169039=t73471259hjdm1u14|pv:3',
+                    'clientlanguage=zh_CN; _gscu_1277169039=734418782e5a5y13; _gscbrs_1277169039=1; JSESSIONID=EF357A16AC7A01A2403D2D1350AF8EF4; _gscs_1277169039=t73471259hjdm1u14|pv:1'
+                    'clientlanguage=zh_CN; _gscu_1277169039=734418782e5a5y13; _gscbrs_1277169039=1; JSESSIONID=EF357A16AC7A01A2403D2D1350AF8EF4; _gscs_1277169039=t73471259hjdm1u14|pv:4',
+                    'JSESSIONID=5CA8366002EA83F2AF7CE402B500980E; clientlanguage=zh_CN; _gscu_1277169039=734719104w69nr75; _gscs_1277169039=73471910uevkfx75|pv:4; _gscbrs_1277169039=1'
+                    'JSESSIONID=5CA8366002EA83F2AF7CE402B500980E; clientlanguage=zh_CN; _gscu_1277169039=734719104w69nr75; _gscs_1277169039=73471910uevkfx75|pv:7; _gscbrs_1277169039=1']
+    headers = {
+        "Cookie":random.choice(cookies_pool),
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0"
+    }
+    page = requests.get(url,proxies=proxies,headers=headers,stream=True)
+    print("http is connecting!")
+    return page
+
+def get_urllist(p,url):
+    page = get_page_1(url)
+    data = page.text
+    etree = html.etree
+    selector = etree.HTML(data)
+    soup = BeautifulSoup(data,'lxml')
+    urllist = []
+    for i in range(1,11):
+        patten = '/html/body/div[1]/div[3]/div/div[2]/div[2]/ul/li['+str(i)+']/a/@href'
+        content = selector.xpath(patten)
+        urllist.extend(content)
+    print("第%d页的urllist收集完毕！" % p)
+    return urllist
+
+def get_data(url):
+    page = get_page_1(url)
+    data = page.text
+    etree = html.etree
+    selector = etree.HTML(data)
+    soup = BeautifulSoup(data,'lxml')
+    title_list = soup.select('.panel-t')
+    if len(title_list) != 0:
+        for t in title_list:
+            title = t.get_text()
+    content = soup.select('.dfloat')
+    content_str = ''.join('%s' %id for id in content)
+    return title,content_str
+
+def insert_db(title,article,url,web):
+    db = py.connect(host='172.23.7.172', port=3306, user='root', password='BDL@BDL.123', db='user_prd')
+    cursor = db.cursor()
+    sql = "insert into `hn_sjz_ggzy` (`title`, `article`, `url`, `websitename`)  value(%s,%s,%s,%s)"
+    try:
+        print("插入数据库开始")
+        cursor.execute(sql,(title,article,url,web))
+        db.commit()
+        print("插入数据库结束")
+    except Exception as e:
+        print("Error is %s" % e)
+    db.close()
+
+def main():
+    web = '石家庄公共资源交易网'
+    urllist = []
+    for i in range(1,573):
+        urllist = []
+        url_base = 'http://www.sjzsggzyjyzx.org.cn/jyxxzc/index_'+str(i)+'.jhtml'
+        urllist = get_urllist(i,url_base)
+
+        for url in urllist:
+            title,content = get_data(url)
+            insert_db(title,content,url,web)
+
+if __name__ == '__main__':
+    main()
