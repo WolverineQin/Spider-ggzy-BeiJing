@@ -71,7 +71,7 @@ def get_data(url):
     return title,content
 
 def insert_db(title,article,url,web):
-    db = py.connect(host='172.23.7.172', port=3306, user='root', password='BDL@BDL.123', db='user_prd')
+    db = py.connect(host='******', port=3306, user='root', password='******', db='user_prd')
     cursor = db.cursor()
     sql = "insert into `js_ggzy` (`title`, `article`, `url`, `websitename`)  value(%s,%s,%s,%s)"
     try:
